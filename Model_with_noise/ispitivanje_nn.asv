@@ -1,0 +1,73 @@
+clc
+clear all
+radijus_kruz = linspace(0.01, 0.19, 100);
+stranica_kvadrat = linspace(0.01, 0.336, 100);
+referenca_x = linspace(0.03, 0.36, 100);
+referenca_y = linspace(0.03, 0.46, 100);
+
+
+[u_x_values, u_y_values, y_x_values, y_y_values] = simuliraj_kruznicu(radijus_kruz(randi([1 length(radijus_kruz)])),referenca_x(randi([1 length(referenca_x)])), referenca_x(randi([1 length(referenca_y)])));
+figure();
+plot(linspace(1,length(y_x_values), length(y_x_values)),y_x_values)
+%%
+load only_nn_flate_plate.mat
+y = mat2cell(y_x_values(1:end)',1, ones(length(y_x_values),1));
+% C1 = mat2cell(y_y_values(1:end)',1, ones(length(y_y_values),1));
+% y_mul = catsamples(C,C1,'pad');
+
+u = mat2cell(u_x_values(1:end)',1, ones(length(u_x_values),1));
+% C1 = mat2cell(u_y_values(1:end)',1, ones(length(u_y_values),1));
+% u_mul = catsamples(C,C1,'pad');
+
+[p,Pi,Ai,t] = preparets(narx_net,u,{},y);
+
+yp = sim(narx_net,p,Pi);
+e = cell2mat(yp)-cell2mat(t);
+figure();
+plot(e);title('error')
+
+figure();
+plot(linspace(1,length(t), length(t)),cell2mat(t), 'LineWidth', 6); hold on; plot(linspace(1,length(y_x_values), length(y_x_values)),y_x_values, 'LineWidth', 3)
+
+
+x1 = cell2mat(p(1,:)); % Convert each input to matrix
+x2 = cell2mat(p(2,:));
+xi1 = cell2mat(Pi(1,:)); % Convert each input state to matrix
+xi2 = cell2mat(Pi(2,:));
+xi1_1 = xi1;
+xi2_1 = xi2;
+[izlaz2,xf1,xf2] = ball_and_plate_nn_matrix(x1,x2,xi1,xi2);
+figure();
+plot(linspace(1,length(t), length(t)),cell2mat(t), 'LineWidth', 6); hold on; plot(linspace(1,length(izlaz2), length(izlaz2)),izlaz2, 'LineWidth', 3); title('usporedba')
+figure();
+[izlaz2,xf1,xf2] = ball_and_plate_nn_matrix(x1,x2,0*xi1,0*xi2);
+plot(linspace(1,length(t), length(t)),cell2mat(t), 'LineWidth', 6); hold on; plot(linspace(1,length(izlaz2), length(izlaz2)),izlaz2, 'LineWidth', 3); title('usporedba2')
+
+izlaz = [];
+izlaz3 = [];
+for i = 1:length(x1)
+    [y3,xi1,xi2] = ball_and_plate_nn_matrix(x1(i),x2(i),xi1,xi2);
+    izlaz = [izlaz, y3]; 
+    xi1_old = xi1_1;
+    xi2_old = xi2_1;
+    [y_lin,xi1_1,xi2_1, A, B] = ball_and_plate_nn_matrix_linearozation(x1(i),x2(i),xi1_1,xi2_1);
+     y_lin = A*([xi1_old,xi2_old]');
+%       y_lin = A*([xi1_1,xi2_1]');
+    izlaz3 = [izlaz3, y_lin(10)];   
+end
+
+%%
+
+
+figure()
+plot(linspace(1,length(t), length(t)),cell2mat(t), 'LineWidth', 6);
+hold on;
+%plot(linspace(1,length(x1), length(x1)),x1, 'LineWidth', 3)
+plot(linspace(1,length(izlaz), length(izlaz)),izlaz, 'LineWidth', 3)
+plot(linspace(1,length(izlaz3), length(izlaz3)),izlaz3, 'LineWidth', 3); legend('proces', 'nn', 'linearizirani model')
+%%
+figure()
+plot(linspace(1,length(y3), length(y3)),y3, 'LineWidth', 5)
+hold on;
+%plot(linspace(1,length(x1), length(x1)),x1, 'LineWidth', 3)
+plot(linspace(1,length(x2), length(x2)),x2, 'LineWidth', 3)
